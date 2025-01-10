@@ -1,0 +1,10 @@
+6
+10
+Julien 1 5 0
+Marc 1 0 0
+Elizabeth 1 2 0
+Justin 4 0 3
+Justine 3 0 3
+Andree 0 5 5
+Thomas 0 4 5
+Samuel 3 4 6
