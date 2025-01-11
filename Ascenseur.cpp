@@ -32,10 +32,11 @@ std::ostream& operator<<(std::ostream& p_os, const Ascenseur& p_ascenseur){
     return p_os;
 }
 
-Ascenseur::Ascenseur(int p_nombreEtages, size_t p_capaciteMax, int p_etageCourant): m_nombreEtages(p_nombreEtages), m_etageCourant(p_etageCourant), m_capaciteMax(p_capaciteMax) {
+Ascenseur::Ascenseur(int p_nombreEtages, size_t p_capaciteMax, int p_etageCourant, size_t p_capacite):
+m_nombreEtages(p_nombreEtages), m_etageCourant(p_etageCourant), m_capaciteMax(p_capaciteMax), m_capacite(p_capacite) {
 }
 
-Ascenseur::Ascenseur(std::ifstream &p_fichier) {
+Ascenseur::Ascenseur(std::ifstream &p_fichier) : m_etageCourant(0), m_capacite(0){
     string s_nombreEtages;
     string s_capaciteMax;
     string nom;
@@ -46,7 +47,6 @@ Ascenseur::Ascenseur(std::ifstream &p_fichier) {
     getline(p_fichier, s_capaciteMax);
     m_nombreEtages = stoi(s_nombreEtages);
     m_capaciteMax = stoi(s_capaciteMax);
-    m_etageCourant = 0;
 
     while(!p_fichier.eof()) {
         p_fichier >> nom;
@@ -71,6 +71,14 @@ size_t Ascenseur::reqCapaciteMax() const {
     return m_capaciteMax;
 }
 
+size_t Ascenseur::reqCapacite() const {
+    return m_capacite;
+}
+
+void Ascenseur::asgCapacite(size_t p_capacite) {
+    m_capacite = p_capacite;
+}
+
 void Ascenseur::parcoursAscenseur(std::vector <Personne>& ordreArrivee, std::vector <int>& etagesVisites, int& temps) {
     deque <Personne> fileHautAttente;
     deque <Personne> fileBasAttente;
@@ -79,25 +87,17 @@ void Ascenseur::parcoursAscenseur(std::vector <Personne>& ordreArrivee, std::vec
     string etat = "haut";
 
     Personne p = m_personnes.front();
-    while(!m_personnes.empty() || !fileHautAttente.empty() || !fileBasAttente.empty() || !fileHautEnRoute.empty() || !fileBasEnRoute.empty()) {
+    while(!m_personnes.empty() || !fileHautAttente.empty() || !fileBasAttente.empty() ||
+        !fileHautEnRoute.empty() || !fileBasEnRoute.empty()) {
         etagesVisites.push_back(m_etageCourant);
 
         //Embarquement des personnes sur l'étage courant
         while(p.reqQuantum() == temps && !m_personnes.empty()) {
-            if(p.reqEtageEntree() == m_etageCourant) {
-                if (etat == "haut")
-                    fileHautEnRoute.push_back(p);
-                if (etat == "bas")
-                    fileBasEnRoute.push_back(p);
-                p.asgEtat(Personne::ENROUTE);
-            }
-            else {
-                if(p.reqEtageEntree() > m_etageCourant)
-                    fileHautAttente.push_back(p);
-                else
-                    fileBasAttente.push_back(p);
-                p.asgEtat(Personne::ATTEND);
-            }
+            if(p.reqEtageEntree() >= m_etageCourant)
+                fileHautAttente.push_back(p);
+            else
+                fileBasAttente.push_back(p);
+            p.asgEtat(Personne::ATTEND);
             m_personnes.pop();
             try {
                 p = m_personnes.front();
@@ -107,24 +107,27 @@ void Ascenseur::parcoursAscenseur(std::vector <Personne>& ordreArrivee, std::vec
             }
         }
 
-        //Gestion entrée/sortie personnes
+        // Gestion entrée/sortie des personnes
         if (etat == "haut") {
             // Vérification s'il y a des personnes qui entrent
             if(!fileHautAttente.empty()) {
                 std::sort(fileHautAttente.begin(), fileHautAttente.end(), OrdreCroissantEtageEntree());
                 Personne hA = fileHautAttente.front();
                 while(hA.reqEtageEntree() == m_etageCourant && !fileHautAttente.empty()) {
-                    if(hA.reqEtageSortie() >= m_etageCourant)
-                        fileHautEnRoute.push_back(hA);
-                    else
-                        fileBasEnRoute.push_back(hA);
-                    hA.asgEtat(Personne::ENROUTE);
-                    fileHautAttente.pop_front();
-                    try {
-                        hA = fileHautAttente.front();
-                    }
-                    catch(std::length_error& e) {
-                        break;
+                    if(m_capacite < m_capaciteMax) {
+                        if(hA.reqEtageSortie() >= m_etageCourant)
+                            fileHautEnRoute.push_back(hA);
+                        else
+                            fileBasEnRoute.push_back(hA);
+                        hA.asgEtat(Personne::ENROUTE);
+                        fileHautAttente.pop_front();
+                        ++m_capacite;
+                        try {
+                            hA = fileHautAttente.front();
+                        }
+                        catch(std::length_error& e) {
+                            continue;
+                        }
                     }
 
                 }
@@ -137,11 +140,12 @@ void Ascenseur::parcoursAscenseur(std::vector <Personne>& ordreArrivee, std::vec
                     ordreArrivee.push_back(hER);
                     hER.asgEtat(Personne::ARRIVEE);
                     fileHautEnRoute.pop_front();
+                    --m_capacite;
                     try {
                         hER = fileHautEnRoute.front();
                     }
                     catch(std::length_error& e) {
-                        break;
+                        continue;
                     }
                 }
             }
@@ -152,17 +156,20 @@ void Ascenseur::parcoursAscenseur(std::vector <Personne>& ordreArrivee, std::vec
                 std::sort(fileBasAttente.begin(), fileBasAttente.end(), OrdreDecroissantEtageEntree());
                 Personne bA = fileBasAttente.front();
                 while(bA.reqEtageEntree() == m_etageCourant && !fileBasAttente.empty()) {
-                    if(bA.reqEtageSortie() <= m_etageCourant)
-                        fileBasEnRoute.push_back(bA);
-                    else
-                        fileHautEnRoute.push_back(bA);
-                    bA.asgEtat(Personne::ENROUTE);
-                    fileBasAttente.pop_front();
-                    try {
-                        bA = fileBasAttente.front();
-                    }
-                    catch(std::length_error& e) {
-                        break;
+                    if(m_capacite < m_capaciteMax) {
+                        if(bA.reqEtageSortie() <= m_etageCourant)
+                            fileBasEnRoute.push_back(bA);
+                        else
+                            fileHautEnRoute.push_back(bA);
+                        bA.asgEtat(Personne::ENROUTE);
+                        fileBasAttente.pop_front();
+                        ++m_capacite;
+                        try {
+                            bA = fileBasAttente.front();
+                        }
+                        catch(std::length_error& e) {
+                            continue;
+                        }
                     }
                 }
             }
@@ -173,16 +180,22 @@ void Ascenseur::parcoursAscenseur(std::vector <Personne>& ordreArrivee, std::vec
                 while(bER.reqEtageSortie() == m_etageCourant && !fileBasEnRoute.empty()) {
                     ordreArrivee.push_back(bER);
                     bER.asgEtat(Personne::ARRIVEE);
-                    fileHautEnRoute.pop_front();
+                    fileBasEnRoute.pop_front();
+                    --m_capacite;
                     try {
-                        bER = fileHautEnRoute.front();
+                        bER = fileBasEnRoute.front();
                     }
                     catch(std::length_error& e) {
-                        break;
+                        continue;
                     }
                 }
             }
         }
+
+        // Vérification si la fin du transport
+        if(m_personnes.empty() && fileHautAttente.empty() && fileBasAttente.empty() &&
+            fileHautEnRoute.empty() && fileBasEnRoute.empty())
+            break;
 
         // Mise à jour de la direction
         if(fileHautAttente.empty() && fileHautEnRoute.empty() && (!fileBasAttente.empty() || !fileBasEnRoute.empty()))
@@ -190,7 +203,7 @@ void Ascenseur::parcoursAscenseur(std::vector <Personne>& ordreArrivee, std::vec
         if(fileBasAttente.empty() && fileBasEnRoute.empty() && (!fileHautAttente.empty() || !fileHautEnRoute.empty()))
             etat = "haut";
 
-        // Changement d'étage (1 quantum)
+        // Changement d'étage (1 étage = 1 quantum)
         if(etat == "bas")
             --m_etageCourant;
         if(etat == "haut")

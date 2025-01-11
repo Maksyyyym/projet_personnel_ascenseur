@@ -13,12 +13,13 @@
 
 class Ascenseur {
     public:
-        Ascenseur(int p_nombreEtages, size_t p_capaciteMax, int p_etageCourant = 0);
+        Ascenseur(int p_nombreEtages, size_t p_capaciteMax, int p_etageCourant = 0, size_t p_capacite = 0);
         Ascenseur(std::ifstream& p_fichier);
-        void ajoutEtage();
         int reqNombreEtages() const;
         int reqEtageCourant() const;
         size_t reqCapaciteMax() const;
+        size_t reqCapacite() const;
+        void asgCapacite(size_t p_capacite);
         void parcoursAscenseur(std::vector <Personne>& ordreArrivee, std::vector <int>& etagesVisites, int& temps);
 
         bool operator()(const Personne &p1, const Personne &p2) const;
@@ -28,6 +29,7 @@ class Ascenseur {
         int m_nombreEtages;
         int m_etageCourant;
         size_t m_capaciteMax;
+        size_t m_capacite;
         std::queue <Personne> m_personnes;
         class OrdreCroissantEtageEntree {
             public:
