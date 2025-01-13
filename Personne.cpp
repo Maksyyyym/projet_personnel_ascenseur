@@ -1,7 +1,7 @@
 #include "Personne.h"
 
 Personne::Personne(const std::string &p_nom, int p_etageMontee, int p_etageDescente, int p_quantum) : m_nom(p_nom),
-m_etageDescente(p_etageDescente), m_etageMontee(p_etageMontee), m_quantum(p_quantum), m_etat(ATTEND) {}
+m_etageMontee(p_etageMontee), m_etageDescente(p_etageDescente), m_quantum(p_quantum), m_etat(ATTEND) {}
 
 std::string Personne::reqNom() const {
     return m_nom;

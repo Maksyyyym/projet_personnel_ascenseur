@@ -33,10 +33,10 @@ std::ostream& operator<<(std::ostream& p_os, const Ascenseur& p_ascenseur){
 }
 
 Ascenseur::Ascenseur(int p_nombreEtages, size_t p_capaciteMax, int p_etageCourant, size_t p_capacite):
-m_nombreEtages(p_nombreEtages), m_etageCourant(p_etageCourant), m_capaciteMax(p_capaciteMax), m_capacite(p_capacite) {
+m_nombreEtages(p_nombreEtages), m_etageCourant(p_etageCourant), m_capaciteMax(p_capaciteMax), m_capacite(p_capacite), m_direction(haut) {
 }
 
-Ascenseur::Ascenseur(std::ifstream &p_fichier) : m_etageCourant(0), m_capacite(0){
+Ascenseur::Ascenseur(std::ifstream &p_fichier) : m_etageCourant(0), m_capacite(0), m_direction(haut){
     string s_nombreEtages;
     string s_capaciteMax;
     string nom;
@@ -79,12 +79,16 @@ void Ascenseur::asgCapacite(size_t p_capacite) {
     m_capacite = p_capacite;
 }
 
-void Ascenseur::parcoursAscenseur(std::vector <Personne>& ordreArrivee, std::vector <int>& etagesVisites, int& temps) {
+void Ascenseur::parcoursAscenseur(std::vector <Personne>& ordreArrivee, std::vector <int>& etagesVisites, int& temps, int& indicateur) {
+    ordreArrivee.clear();
+    etagesVisites.clear();
+    temps = 0;
+    indicateur = 0;
+
     deque <Personne> fileHautAttente;
     deque <Personne> fileBasAttente;
     deque <Personne> fileHautEnRoute;
     deque <Personne> fileBasEnRoute;
-    string etat = "haut";
 
     Personne p = m_personnes.front();
     while(!m_personnes.empty() || !fileHautAttente.empty() || !fileBasAttente.empty() ||
@@ -102,36 +106,13 @@ void Ascenseur::parcoursAscenseur(std::vector <Personne>& ordreArrivee, std::vec
             try {
                 p = m_personnes.front();
             }
-            catch(std::length_error& e) {
-                break;
+            catch(std::bad_alloc& e) {
+                continue;
             }
         }
 
         // Gestion entrée/sortie des personnes
-        if (etat == "haut") {
-            // Vérification s'il y a des personnes qui entrent
-            if(!fileHautAttente.empty()) {
-                std::sort(fileHautAttente.begin(), fileHautAttente.end(), OrdreCroissantEtageEntree());
-                Personne hA = fileHautAttente.front();
-                while(hA.reqEtageEntree() == m_etageCourant && !fileHautAttente.empty()) {
-                    if(m_capacite < m_capaciteMax) {
-                        if(hA.reqEtageSortie() >= m_etageCourant)
-                            fileHautEnRoute.push_back(hA);
-                        else
-                            fileBasEnRoute.push_back(hA);
-                        hA.asgEtat(Personne::ENROUTE);
-                        fileHautAttente.pop_front();
-                        ++m_capacite;
-                        try {
-                            hA = fileHautAttente.front();
-                        }
-                        catch(std::length_error& e) {
-                            continue;
-                        }
-                    }
-
-                }
-            }
+        if (m_direction == haut) {
             // Vérification s'il y a des personnes qui sortent
             if(!fileHautEnRoute.empty()) {
                 std::sort(fileHautEnRoute.begin(), fileHautEnRoute.end(), OrdreCroissantEtageSortie());
@@ -144,35 +125,46 @@ void Ascenseur::parcoursAscenseur(std::vector <Personne>& ordreArrivee, std::vec
                     try {
                         hER = fileHautEnRoute.front();
                     }
-                    catch(std::length_error& e) {
+                    catch(std::bad_alloc& e) {
                         continue;
                     }
                 }
             }
-        }
-        if (etat == "bas") {
             // Vérification s'il y a des personnes qui entrent
-            if(!fileBasAttente.empty()) {
-                std::sort(fileBasAttente.begin(), fileBasAttente.end(), OrdreDecroissantEtageEntree());
-                Personne bA = fileBasAttente.front();
-                while(bA.reqEtageEntree() == m_etageCourant && !fileBasAttente.empty()) {
+            if(!fileHautAttente.empty()) {
+                deque <Personne> fileHautProvisoire;
+                std::sort(fileHautAttente.begin(), fileHautAttente.end(), OrdreCroissantEtageEntree());
+                Personne hA = fileHautAttente.front();
+                while(hA.reqEtageEntree() == m_etageCourant && !fileHautAttente.empty()) {
                     if(m_capacite < m_capaciteMax) {
-                        if(bA.reqEtageSortie() <= m_etageCourant)
-                            fileBasEnRoute.push_back(bA);
+                        if(hA.reqEtageSortie() >= m_etageCourant)
+                            fileHautEnRoute.push_back(hA);
                         else
-                            fileHautEnRoute.push_back(bA);
-                        bA.asgEtat(Personne::ENROUTE);
-                        fileBasAttente.pop_front();
+                            fileBasEnRoute.push_back(hA);
+                        hA.asgEtat(Personne::ENROUTE);
                         ++m_capacite;
-                        try {
-                            bA = fileBasAttente.front();
-                        }
-                        catch(std::length_error& e) {
-                            continue;
-                        }
+                    }
+                    else {
+                        if(m_etageCourant != m_nombreEtages)
+                            fileBasAttente.push_back(hA);
+                        else
+                            fileHautProvisoire.push_back(hA);
+                    }
+                    fileHautAttente.pop_front();
+                    try {
+                        indicateur = 7;
+                        hA = fileHautAttente.front();
+                    }
+                    catch(std::bad_alloc& r) {
+                        indicateur = 8;
+                        continue;
                     }
                 }
+                if(m_etageCourant == m_nombreEtages && !fileHautProvisoire.empty())
+                    fileHautAttente = move(fileHautProvisoire);
             }
+        }
+        if (m_direction == bas) {
             // Vérification s'il y a des personnes qui sortent
             if(!fileBasEnRoute.empty()) {
                 std::sort(fileBasEnRoute.begin(), fileBasEnRoute.end(), OrdreDecroissantEtageSortie());
@@ -185,10 +177,41 @@ void Ascenseur::parcoursAscenseur(std::vector <Personne>& ordreArrivee, std::vec
                     try {
                         bER = fileBasEnRoute.front();
                     }
-                    catch(std::length_error& e) {
+                    catch(std::bad_alloc& e) {
                         continue;
                     }
                 }
+            }
+            // Vérification s'il y a des personnes qui entrent
+            if(!fileBasAttente.empty()) {
+                deque <Personne> fileBasProvisoire;
+                std::sort(fileBasAttente.begin(), fileBasAttente.end(), OrdreDecroissantEtageEntree());
+                Personne bA = fileBasAttente.front();
+                while(bA.reqEtageEntree() == m_etageCourant && !fileBasAttente.empty()) {
+                    if(m_capacite < m_capaciteMax) {
+                        if(bA.reqEtageSortie() <= m_etageCourant)
+                            fileBasEnRoute.push_back(bA);
+                        else
+                            fileHautEnRoute.push_back(bA);
+                        bA.asgEtat(Personne::ENROUTE);
+                        ++m_capacite;
+                    }
+                    else {
+                        if(m_etageCourant != 0)
+                            fileHautAttente.push_back(bA);
+                        else
+                            fileBasProvisoire.push_back(bA);
+                    }
+                    fileBasAttente.pop_front();
+                    try {
+                        bA = fileBasAttente.front();
+                    }
+                    catch(std::bad_alloc& e) {
+                        continue;
+                    }
+                }
+                if(m_etageCourant == 0 && !fileBasProvisoire.empty())
+                    fileBasAttente = move(fileBasProvisoire);
             }
         }
 
@@ -198,18 +221,28 @@ void Ascenseur::parcoursAscenseur(std::vector <Personne>& ordreArrivee, std::vec
             break;
 
         // Mise à jour de la direction
-        if(fileHautAttente.empty() && fileHautEnRoute.empty() && (!fileBasAttente.empty() || !fileBasEnRoute.empty()))
-            etat = "bas";
-        if(fileBasAttente.empty() && fileBasEnRoute.empty() && (!fileHautAttente.empty() || !fileHautEnRoute.empty()))
-            etat = "haut";
+        indicateur = 7;
+        if(m_etageCourant != m_nombreEtages && m_etageCourant != 0) {
+            if(fileHautAttente.empty() && fileHautEnRoute.empty() && (!fileBasAttente.empty() || !fileBasEnRoute.empty()))
+                m_direction = bas;
+            if(fileBasAttente.empty() && fileBasEnRoute.empty() && (!fileHautAttente.empty() || !fileHautEnRoute.empty()))
+                m_direction = haut;
+        }
+        else {
+            if(m_etageCourant == m_nombreEtages)
+                m_direction = bas;
+            if(m_etageCourant == 0)
+                m_direction = haut;
+        }
+
 
         // Changement d'étage (1 étage = 1 quantum)
-        if(etat == "bas")
+        if(m_direction == bas)
             --m_etageCourant;
-        if(etat == "haut")
+        if(m_direction == haut)
             ++m_etageCourant;
         ++temps;
-    }
+        }
 }
 
 bool Ascenseur::OrdreCroissantEtageEntree::operator()(const Personne &p1, const Personne &p2) const {

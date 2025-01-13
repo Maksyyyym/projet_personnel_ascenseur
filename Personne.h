@@ -3,6 +3,10 @@
 
 #include <iostream>
 
+/**
+ * \class Personne
+ * \brief Classe représentant le concept d'une personne qui prend l'ascenseur. Tout objet Personne possède des attributs
+ */
 class Personne{
   public:
     enum etat {

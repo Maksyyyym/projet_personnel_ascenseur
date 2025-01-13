@@ -5,12 +5,12 @@ using namespace std;
 
 int main()
 {
-    ifstream f_trace1("traceAscenseur1.txt", ios::in);
+    ifstream f_trace1("traceAscenseur3.txt", ios::in);
     Ascenseur a(f_trace1);
-    int temps = 0;
+    int temps, indicateur = 0;
     std::vector <Personne> ordreArrivee;
     std::vector <int> etagesVisites;
-    a.parcoursAscenseur(ordreArrivee, etagesVisites, temps);
+    a.parcoursAscenseur(ordreArrivee, etagesVisites, temps, indicateur);
     cout << endl;
     cout << "Temps de transport : " << temps << endl;
     cout << "Etages visites (en ordre) : " << endl;
@@ -28,6 +28,5 @@ int main()
             cout << ordreArrivee[i].reqNom() << ", ";
     }
     cout << a;
-
     return 0;
 }
