@@ -5,7 +5,9 @@
 
 /**
  * \class Personne
- * \brief Classe représentant le concept d'une personne qui prend l'ascenseur. Tout objet Personne possède des attributs
+ * \brief Classe représentant le concept d'une personne qui prend l'ascenseur. Tout objet Personne possède les attributs
+ * tels que le nom, l'étage d'arrivée, l'étage de destination, le temps (quantum) d'arrivée et l'état en fonction de
+ * l'ascenseur (en attente, en route, arrivée)
  */
 class Personne{
   public:

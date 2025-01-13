@@ -25,7 +25,10 @@
  * ligne; le nom de l'objet Personne suivi de l'étage d'entrée, d'étage de sortie et du temps d'appel d'ascenseur aux
  * lignes subséquentes. Ainsi, l'ascenseur enregistre son scénario de transport qui dépend du nombre de passagers
  * l'appelant aux moments différents et ayant des étages d'arrivée et de destination différents. À noter que les
- * personnes dont les informations sont notées dans le fichier doivent être disposées en ordre d'arrivée
+ * personnes dont les informations sont notées dans le fichier doivent être disposées en ordre d'arrivée.
+ *
+ * En utilisant la méthode parcoursAscenseur(), il est possible de déterminer l'ordre d'arrivée des personnes à leurs
+ * étages de destination respectives, les étages visités lors du parcous en ordre et le temps du parcours
  */
 class Ascenseur {
     public:
